@@ -20,6 +20,9 @@ inputs:
   GITHUB_TOKEN:
     description: 'Github Token for API access'
     required: true
+  REPO:
+    description: 'Helm Repo'
+    required: true
   ORG:
     description: 'Github Org or Username'
     required: true
