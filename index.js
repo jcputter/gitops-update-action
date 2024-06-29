@@ -10,7 +10,7 @@ const asyncRetry = require('async-retry');
 
 
 const githubToken = process.env.GITHUB_TOKEN;
-const fileName = process.env.FILE;
+const fileName = process.env.FILENAME;
 const tag = process.env.TAG;
 const service = process.env.SERVICE;
 const env = process.env.ENVIRONMENT;
