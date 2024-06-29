@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "argparse": "^2.0.1",
-    "axios": "^0.21.1",
+    "axios": "^1.7.2",
     "js-yaml": "^4.1.0",
     "logging": "^1.1.1",
     "simple-git": "^2.37.0",
