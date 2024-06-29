@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-const argparse = require('argparse');
-const logging = require('logging');
 const { promises: fs } = require('fs');
 const tmp = require('tmp');
 const simpleGit = require('simple-git');
@@ -10,7 +8,50 @@ const yaml = require('js-yaml');
 const path = require('path');
 const asyncRetry = require('async-retry');
 
-logging.basicConfig({ level: 'info' });
+
+const githubToken = process.env.GITHUB_TOKEN;
+const fileName = process.env.FILE;
+const tag = process.env.TAG;
+const service = process.env.SERVICE;
+const env = process.env.ENV;
+const repo = process.env.REPO;
+const org = process.env.ORG;
+
+
+if (!githubToken) {
+    console.log('GITHUB_TOKEN environment variable is not set.');
+    process.exit(1);
+}
+
+if (!fileName) {
+    console.log('FILE environment variable is not set.');
+    process.exit(1);
+}
+
+if (!tag) {
+    console.log('TAG environment variable is not set.');
+    process.exit(1);
+}
+
+if (!env) {
+    console.log('ENV environment variable is not set.');
+    process.exit(1);
+}
+
+if (!service) {
+    console.log('SERVICE environment variable is not set.');
+    process.exit(1);
+}
+
+if (!repo) {
+    console.log('REPO environment variable is not set.');
+    process.exit(1);
+}
+
+if (!org) {
+    console.log('ORG environment variable is not set.');
+    process.exit(1);
+}
 
 const cloneRepository = async (repo, tmpdir) => {
     const git = simpleGit();
@@ -28,7 +69,7 @@ const getShortRepoName = (repo) => {
     if (match) {
         return match[1];
     } else {
-        console.error('Unable to extract repository name.');
+        console.log('Unable to extract repository name.');
         return null;
     }
 };
@@ -42,7 +83,7 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     const data = yaml.load(fileContent);
 
     if (data.image.tag === tag) {
-        logging.info(`Tag already set, ${tag}`);
+        console.log(`Tag already set, ${tag}`);
         return;
     }
 
@@ -51,7 +92,7 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     try {
         await fs.writeFile(filePath, yaml.dump(data), 'utf8');
     } catch (error) {
-        logging.error(`Failed to write to file ${filePath}. Error: ${error.message}`);
+        console.log(`Failed to write to file ${filePath}. Error: ${error.message}`);
         return;
     }
 
@@ -66,7 +107,7 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
             retries: 3,
             minTimeout: 5000,
             onRetry: (err, attempt) => {
-                logging.info(`Retry ${attempt} due to error: ${err.message}`);
+                console.log(`Retry ${attempt} due to error: ${err.message}`);
             }
         }
     );
@@ -84,13 +125,13 @@ const createLabel = async (repo, labelName, labelColor, githubToken, org) => {
     const response = await axios.post(labelUrl, labelData, { headers });
 
     if (response.status === 201) {
-        logging.info(`Label '${labelName}' created successfully.`);
+        console.log(`Label '${labelName}' created successfully.`);
         return true;
     } else if (response.status === 422) {
-        logging.info(`Label '${labelName}' already exists.`);
+        console.log(`Label '${labelName}' already exists.`);
         return true;
     } else {
-        logging.error(`Failed to create label '${labelName}'. Status Code: ${response.status}, Response: ${response.data}`);
+        console.log(`Failed to create label '${labelName}'. Status Code: ${response.status}, Response: ${response.data}`);
         return false;
     }
 };
@@ -105,9 +146,9 @@ const addLabelsToPullRequest = async (prNumber, labels, githubToken, org, repo) 
     const response = await axios.post(labelsUrl, data, { headers });
 
     if (response.status === 200) {
-        logging.info(`Labels added to pull request ${prNumber}`);
+        console.log(`Labels added to pull request ${prNumber}`);
     } else {
-        logging.error(`Failed to add labels to pull request ${prNumber}. Status Code: ${response.status}, Response: ${response.data}`);
+        console.log(`Failed to add labels to pull request ${prNumber}. Status Code: ${response.status}, Response: ${response.data}`);
     }
 };
 
@@ -131,10 +172,10 @@ const createPullRequest = async (repo, branchName, baseBranch, title, body, gith
 
     if (response.status === 201) {
         const prNumber = response.data.number;
-        logging.info(`Pull request created successfully: ${response.data.html_url}`);
+        console.log(`Pull request created successfully: ${response.data.html_url}`);
         return prNumber;
     } else {
-        logging.error(`Failed to create pull request. Status Code: ${response.status}, Response: ${response.data}`);
+        console.log(`Failed to create pull request. Status Code: ${response.status}, Response: ${response.data}`);
         return null;
     }
 };
@@ -145,14 +186,14 @@ const mergePullRequest = async (prNumber, githubToken, org, repo) => {
     const response = await axios.put(mergeUrl, {}, { headers });
 
     if (response.status === 200) {
-        logging.info('Pull request merged successfully');
+        console.log('Pull request merged successfully');
     } else {
-        logging.error(`Failed to merge pull request. Status Code: ${response.status}, Response: ${response.data}`);
+        console.log(`Failed to merge pull request. Status Code: ${response.status}, Response: ${response.data}`);
     }
 };
 
 const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, org, env) => {
-    logging.info(`Checking out ${repo}`);
+    console.log(`Checking out ${repo}`);
     const tmpdir = tmp.dirSync().name;
     tmp.setGracefulCleanup();
 
@@ -181,22 +222,8 @@ const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, o
     }
 };
 
-const parser = new argparse.ArgumentParser();
-parser.add_argument('--file', { help: 'Filename', required: true });
-parser.add_argument('--tag', { help: 'New value as is. Add quotes if required', required: true });
-parser.add_argument('--service', { help: 'The name of the service', required: true });
-parser.add.argument('--env', { help: 'The name of the environment', required: true });
-parser.add.argument('--repo', { help: 'The gitops repo', required: true });
-parser.add.argument('--org', { help: 'Github Org', required: true });
-const args = parser.parse_args();
 
-const githubToken = process.env.GITHUB_TOKEN;
-if (!githubToken) {
-    console.error('GITHUB_TOKEN environment variable is not set.');
-    process.exit(1);
-}
-
-const shortRepoName = getShortRepoName(args.repo);
+const shortRepoName = getShortRepoName(repo);
 if (!shortRepoName) process.exit(1);
 
-gitCommitAndCreatePr(args.file, args.repo, args.tag, githubToken, args.service, args.org, args.env);
+gitCommitAndCreatePr(fileName, repo, tag, githubToken, service, org, env);
