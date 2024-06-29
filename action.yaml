@@ -9,22 +9,22 @@ inputs:
     description: 'The deployment environment'
     required: true
   FILENAME:
-    description: 'the file path location of the values file'
+    description: 'The file path location of the values file'
     required: true
   TAG:
     description: 'Image tag to update'
     required: true
   GITHUB_DEPLOY_KEY:
-    description: 'Github deploy key'
+    description: 'GitHub deploy key'
     required: true
   GITHUB_TOKEN:
-    description: 'Github Token for API access'
+    description: 'GitHub Token for API access'
     required: true
   REPO:
     description: 'Helm Repo'
     required: true
   ORG:
-    description: 'Github Org or Username'
+    description: 'GitHub Org or Username'
     required: true
 
 runs:
