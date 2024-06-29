@@ -17,6 +17,8 @@ const env = process.env.ENV;
 const repo = process.env.REPO;
 const org = process.env.ORG;
 
+console.log(githubToken)
+
 
 if (!githubToken) {
     console.log('GITHUB_TOKEN environment variable is not set.');
