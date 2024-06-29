@@ -1,5 +1,5 @@
-name: 'Deployment Approval'
-description: 'Handles deployment approvals via Slack'
+name: 'GitOps Update'
+description: 'Updates image tags for your helm charts'
 author: 'jcputter@gmail.com'
 inputs:
   SERVICE:
