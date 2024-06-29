@@ -1,0 +1,33 @@
+name: 'Deployment Approval'
+description: 'Handles deployment approvals via Slack'
+author: 'jcputter@gmail.com'
+inputs:
+  SERVICE:
+    description: 'Name of the service'
+    required: true
+  ENVIRONMENT:
+    description: 'The deployment environment'
+    required: true
+  FILENAME:
+    description: 'the file path location of the values file'
+    required: true
+  TAG:
+    description: 'Image tag to update'
+    required: true
+  GITHUB_DEPLOY_KEY:
+    description: 'Github deploy key'
+    required: true
+  GITHUB_TOKEN:
+    description: 'Github Token for API access'
+    required: true
+  ORG:
+    description: 'Github Org or Username'
+    required: true
+
+runs:
+  using: 'node20'
+  main: 'index.js'
+
+branding:
+  icon: 'check-circle'
+  color: 'blue'
