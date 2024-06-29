@@ -13,7 +13,7 @@ const githubToken = process.env.GITHUB_TOKEN;
 const fileName = process.env.FILE;
 const tag = process.env.TAG;
 const service = process.env.SERVICE;
-const env = process.env.ENV;
+const env = process.env.ENVIRONMENT;
 const repo = process.env.REPO;
 const org = process.env.ORG;
 
