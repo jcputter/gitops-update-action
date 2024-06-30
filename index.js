@@ -257,42 +257,21 @@ const mergePullRequest = async (prNumber, githubToken, org, repo) => {
     const headers = { Authorization: `Bearer ${githubToken}` };
     const mergeUrl = `https://api.github.com/repos/${org}/${repo}/pulls/${prNumber}/merge`;
 
-    const attemptMerge = async (bail, attempt) => {
-        try {
-            console.log(`Attempt ${attempt}: Trying to merge PR #${prNumber}`);
-            const response = await axios.put(mergeUrl, {}, { headers });
-
-            if (response.status === 200) {
-                console.log('🚀 Pull request merged successfully');
-                return;
-            } else {
-                console.log(`💩 Failed to merge pull request. Status Code: ${response.status}, Response: ${response.data}`);
-                if (response.status === 405) {
-                    throw new Error('Method Not Allowed');
-                } else {
-                    bail(new Error(`Merge failed with status: ${response.status}`));
-                }
-            }
-        } catch (error) {
-            if (error.response && error.response.status === 405) {
-                console.log('🚨 PR not ready to merge yet. Retrying...');
-                throw error;
-            } else {
-                bail(error);
-            }
-        }
-    };
-
     try {
-        await retry(async (bail, attempt) => {
-            await attemptMerge(bail, attempt);
-        }, {
-            retries: 3,
-            minTimeout: 1000,
-            maxTimeout: 5000,
-        });
+        console.log(`Trying to merge PR #${prNumber}`);
+        const response = await axios.put(mergeUrl, {}, { headers });
+
+        if (response.status === 200) {
+            console.log('🚀 Pull request merged successfully');
+        } else {
+            console.log(`💩 Failed to merge pull request. Status Code: ${response.status}, Response: ${response.data}`);
+        }
     } catch (error) {
-        console.log(`💩 Final attempt failed. Error: ${error.message}`);
+        if (error.response && error.response.status === 405) {
+            console.log('🚨 PR not ready to merge yet.');
+        } else {
+            console.log(`💩 Merge attempt failed. Error: ${error.message}`);
+        }
     }
 };
 
