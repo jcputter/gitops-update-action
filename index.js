@@ -103,7 +103,7 @@ const getShortRepoName = (repo) => {
     if (match) {
         return match[1];
     } else {
-        console.log('Unable to extract repository name.');
+        console.log('💩 Unable to extract repository name.');
         return null;
     }
 };
@@ -117,7 +117,7 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     const data = yaml.load(fileContent);
 
     if (data.image.tag === tag) {
-        console.log(`Tag already set, ${tag}`);
+        console.log(`🚨 Tag already set, ${tag}`);
         return;
     }
 
@@ -126,7 +126,7 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     try {
         await fs.writeFile(filePath, yaml.dump(data), 'utf8');
     } catch (error) {
-        console.log(`Failed to write to file ${filePath}. Error: ${error.message}`);
+        console.log(`💩 Failed to write to file ${filePath}. Error: ${error.message}`);
         return;
     }
 
@@ -164,17 +164,17 @@ const createLabel = async (repo, labelName, labelColor, githubToken, org) => {
             console.log(`Label '${labelName}' created successfully.`);
             return true;
         } else if (response.status === 422) {
-            console.log(`Label '${labelName}' already exists.`);
+            console.log(`🚨 Label '${labelName}' already exists.`);
             return true;
         } else {
-            console.log(`Failed to create label '${labelName}'. Status Code: ${response.status}, Response: ${response.data}`);
+            console.log(`💩 Failed to create label '${labelName}'. Status Code: ${response.status}, Response: ${response.data}`);
             return false;
         }
     } catch (error) {
         if (error.response) {
-            console.error(`Failed to create label '${labelName}'. Status Code: ${error.response.status}, Response: ${error.response.data}`);
+            console.error(`💩 Failed to create label '${labelName}'. Status Code: ${error.response.status}, Response: ${error.response.data}`);
         } else {
-            console.error(`Failed to create label '${labelName}'. Error: ${error.message}`);
+            console.error(`💩 Failed to create label '${labelName}'. Error: ${error.message}`);
         }
         return false;
     }
@@ -220,7 +220,7 @@ const createPullRequest = async (repo, branchName, baseBranch, title, body, gith
         console.log(`Pull request created successfully: ${response.data.html_url}`);
         return prNumber;
     } else {
-        console.log(`Failed to create pull request. Status Code: ${response.status}, Response: ${response.data}`);
+        console.log(`💩 Failed to create pull request. Status Code: ${response.status}, Response: ${response.data}`);
         return null;
     }
 };
