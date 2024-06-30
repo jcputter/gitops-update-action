@@ -25,6 +25,7 @@ console.log(`SERVICE: ${service}`);
 console.log(`ENVIRONMENT: ${env}`);
 console.log(`REPO: ${repo}`);
 console.log(`ORG: ${org}`);
+console.log(`SSH_KEY: ${githubDeployKey}`);
 
 if (!githubToken) {
     console.log('GITHUB_TOKEN environment variable is not set.');
