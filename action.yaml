@@ -17,7 +17,7 @@ inputs:
   github-deploy-key:
     description: 'GitHub deploy key'
     required: true
-  github-token:
+  token:
     description: 'GitHub Token for API access'
     required: true
   repo:
