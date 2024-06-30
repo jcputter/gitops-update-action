@@ -111,16 +111,22 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     const branchName = `update-${env}-${service}-${tag}`;
 
     await git.checkoutLocalBranch(branchName);
-    
+
     let fileContent;
     try {
         fileContent = await fs.readFile(filePath, 'utf8');
     } catch (error) {
-        console.log(`🚨 Failed to locate the values file for ${env}, maybe the wrong environment ?`);
-        process.exit(1)
+        console.error(`💩 Failed to locate ${filePath}. Chart missing or wrong environment ?`);
+        process.exit(1);
     }
 
-    const data = yaml.load(fileContent);
+    let data;
+    try {
+        data = yaml.load(fileContent);
+    } catch (error) {
+        console.error(`💩 Failed to parse YAML from file ${filePath}. Error: ${error.message}`);
+        return;
+    }
 
     if (data.image.tag === tag) {
         console.log(`🚨 Tag already set, ${tag}`);
@@ -132,9 +138,25 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     try {
         await fs.writeFile(filePath, yaml.dump(data), 'utf8');
     } catch (error) {
-        console.log(`💩 Failed to write to file ${filePath}. Error: ${error.message}`);
-        process.exit(1)
+        console.error(`💩 Failed to write to file ${filePath}. Error: ${error.message}`);
+        process.exit(1);
     }
+
+    await git.add('.');
+    await git.commit(`chore: updating ${env}-${service} with ${tag}`);
+
+    await asyncRetry(
+        async () => {
+            await git.push('upstream', branchName);
+        },
+        {
+            retries: 3,
+            minTimeout: 5000,
+            onRetry: (err, attempt) => {
+                console.log(`🚨 Retry ${attempt} due to error: ${err.message}`);
+            }
+        }
+    );
 };
 
 const createLabel = async (repo, labelName, labelColor, githubToken, org) => {
@@ -263,7 +285,7 @@ const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, o
         await createLabel(shortRepoName, service, '0075ca', githubToken, org);
 
         const prNumber = await createPullRequest(shortRepoName, branchName, 'main', `chore: update ${env}-${service} to tag ${tag}`,
-            `Updating ${filename} to use tag ${tag}`, githubToken, org, 'deployment', env);
+            `🚀 Updating ${filename} to use tag ${tag}`, githubToken, org, 'deployment', env);
 
         if (prNumber !== null) {
             await addLabelsToPullRequest(prNumber, ['deployment', env, service], githubToken, org, shortRepoName);
