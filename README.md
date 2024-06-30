@@ -1,4 +1,4 @@
-## Github Action to update helm values file during your build pipeline. 
+Github Action to update helm values file during your build pipeline. 
 
 Usage:
 
