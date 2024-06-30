@@ -303,6 +303,8 @@ const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, o
         const prNumber = await createPullRequest(shortRepoName, branchName, 'main', `chore: update ${env}-${service} to tag ${tag}`,
             `🚀 Updating ${filename} to use tag ${tag}`, githubToken, org, 'deployment', env);
 
+        console.log(prNumber)
+
         if (prNumber !== null) {
             await addLabelsToPullRequest(prNumber, ['deployment', env, service], githubToken, org, shortRepoName);
             await mergePullRequest(prNumber, githubToken, org, shortRepoName);
