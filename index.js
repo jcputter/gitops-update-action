@@ -205,7 +205,7 @@ const mergePullRequest = async (prNumber, githubToken, org, repo) => {
 };
 
 const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, org, env) => {
-    console.log(`Checking out ${repo}`);
+    console.log(`⏳ Checking out ${repo}`);
     const tmpdir = tmp.dirSync().name;
     tmp.setGracefulCleanup();
 
