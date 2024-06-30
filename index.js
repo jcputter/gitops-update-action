@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const { promises: fs } = require('fs');
 const tmp = require('tmp');
 const simpleGit = require('simple-git');
@@ -5,7 +7,7 @@ const axios = require('axios');
 const yaml = require('js-yaml');
 const path = require('path');
 const asyncRetry = require('async-retry');
-
+const { exec } = require('child_process');
 
 const githubToken = process.env.INPUT_TOKEN;
 const fileName = process.env.INPUT_FILENAME;
@@ -14,6 +16,7 @@ const service = process.env.INPUT_SERVICE;
 const env = process.env.INPUT_ENVIRONMENT;
 const repo = process.env.INPUT_REPO;
 const org = process.env.INPUT_ORG;
+const githubDeployKey = process.env.INPUT_GITHUB_DEPLOY_KEY;
 
 console.log(`GITHUB_TOKEN: ${githubToken}`);
 console.log(`FILENAME: ${fileName}`);
@@ -23,14 +26,13 @@ console.log(`ENVIRONMENT: ${env}`);
 console.log(`REPO: ${repo}`);
 console.log(`ORG: ${org}`);
 
-
 if (!githubToken) {
     console.log('GITHUB_TOKEN environment variable is not set.');
     process.exit(1);
 }
 
 if (!fileName) {
-    console.log('FILE environment variable is not set.');
+    console.log('FILENAME environment variable is not set.');
     process.exit(1);
 }
 
@@ -40,7 +42,7 @@ if (!tag) {
 }
 
 if (!env) {
-    console.log('ENV environment variable is not set.');
+    console.log('ENVIRONMENT environment variable is not set.');
     process.exit(1);
 }
 
@@ -56,6 +58,11 @@ if (!repo) {
 
 if (!org) {
     console.log('ORG environment variable is not set.');
+    process.exit(1);
+}
+
+if (!githubDeployKey) {
+    console.log('GITHUB_DEPLOY_KEY environment variable is not set.');
     process.exit(1);
 }
 
@@ -204,6 +211,27 @@ const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, o
     tmp.setGracefulCleanup();
 
     try {
+        // Configure SSH
+        const sshDir = path.join(process.env.HOME, '.ssh');
+        await fs.mkdir(sshDir, { recursive: true });
+        const knownHosts = path.join(sshDir, 'known_hosts');
+        const deployKey = path.join(sshDir, 'deploy_key');
+
+        await fs.writeFile(deployKey, githubDeployKey);
+        await fs.chmod(deployKey, 0o600);
+
+        // Add GitHub.com to known hosts
+        await new Promise((resolve, reject) => {
+            exec(`ssh-keyscan github.com >> ${knownHosts}`, (error, stdout, stderr) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(stdout);
+                }
+            });
+        });
+
+        // Clone the repository
         await cloneRepository(repo, tmpdir);
         const git = createGitRepo(tmpdir, repo);
         const branchName = `update-${env}-${service}-${tag}`;
@@ -227,7 +255,6 @@ const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, o
         tmp.setGracefulCleanup();
     }
 };
-
 
 const shortRepoName = getShortRepoName(repo);
 if (!shortRepoName) process.exit(1);
