@@ -284,7 +284,9 @@ const mergePullRequest = async (prNumber, githubToken, org, repo) => {
     };
 
     try {
-        await retry(attemptMerge, {
+        await retry(async (bail, attempt) => {
+            await attemptMerge(bail, attempt);
+        }, {
             retries: 3,
             minTimeout: 1000,
             maxTimeout: 5000,
@@ -293,6 +295,7 @@ const mergePullRequest = async (prNumber, githubToken, org, repo) => {
         console.log(`💩 Final attempt failed. Error: ${error.message}`);
     }
 };
+
 
 
 const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, org, env) => {
