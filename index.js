@@ -246,7 +246,7 @@ const mergePullRequest = async (prNumber, githubToken, org, repo) => {
     const response = await axios.put(mergeUrl, {}, { headers });
 
     if (response.status === 200) {
-        console.log('✅ Pull request merged successfully');
+        console.log('🚀 Pull request merged successfully');
     } else {
         console.log(`💩 Failed to merge pull request. Status Code: ${response.status}, Response: ${response.data}`);
     }
