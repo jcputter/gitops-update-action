@@ -74,16 +74,9 @@ const configureSSH = async (deployKey) => {
     const sshDir = path.join(process.env.HOME, '.ssh');
     await fs.mkdir(sshDir, { recursive: true });
     const knownHosts = path.join(sshDir, 'known_hosts');
-    const deployKeyPath = path.join(sshDir, 'deploy_key');
+    const deployKeyPath = path.join(sshDir, 'id_rsa');
 
     await fs.writeFile(deployKeyPath, deployKey, { mode: 0o600 });
-    
-    // Start the SSH agent and add the key
-    await execPromise('eval $(ssh-agent -s)');
-    await execPromise(`ssh-add ${deployKeyPath}`);
-    
-    // Add GitHub to known hosts
-    await execPromise(`ssh-keyscan github.com >> ${knownHosts}`);
 };
 
 const cloneRepository = async (repo, tmpdir) => {
