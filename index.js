@@ -156,19 +156,30 @@ const createLabel = async (repo, labelName, labelColor, githubToken, org) => {
     };
 
     const labelUrl = `https://api.github.com/repos/${org}/${repo}/labels`;
-    const response = await axios.post(labelUrl, labelData, { headers });
 
-    if (response.status === 201) {
-        console.log(`Label '${labelName}' created successfully.`);
-        return true;
-    } else if (response.status === 422) {
-        console.log(`Label '${labelName}' already exists.`);
-        return true;
-    } else {
-        console.log(`Failed to create label '${labelName}'. Status Code: ${response.status}, Response: ${response.data}`);
+    try {
+        const response = await axios.post(labelUrl, labelData, { headers });
+
+        if (response.status === 201) {
+            console.log(`Label '${labelName}' created successfully.`);
+            return true;
+        } else if (response.status === 422) {
+            console.log(`Label '${labelName}' already exists.`);
+            return true;
+        } else {
+            console.log(`Failed to create label '${labelName}'. Status Code: ${response.status}, Response: ${response.data}`);
+            return false;
+        }
+    } catch (error) {
+        if (error.response) {
+            console.error(`Failed to create label '${labelName}'. Status Code: ${error.response.status}, Response: ${error.response.data}`);
+        } else {
+            console.error(`Failed to create label '${labelName}'. Error: ${error.message}`);
+        }
         return false;
     }
 };
+
 
 const addLabelsToPullRequest = async (prNumber, labels, githubToken, org, repo) => {
     const labelsUrl = `https://api.github.com/repos/${org}/${repo}/issues/${prNumber}/labels`;
