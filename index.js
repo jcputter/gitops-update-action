@@ -77,6 +77,7 @@ const configureSSH = async (deployKey) => {
     const deployKeyPath = path.join(sshDir, 'id_rsa');
 
     await fs.writeFile(deployKeyPath, deployKey, { mode: 0o600 });
+    await execPromise(`ssh-keyscan github.com >> ${knownHosts}`);
 };
 
 const cloneRepository = async (repo, tmpdir) => {
