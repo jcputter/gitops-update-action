@@ -256,7 +256,7 @@ const createPullRequest = async (repo, branchName, baseBranch, title, body, gith
 const mergePullRequest = async (prNumber, githubToken, org, repo, attempts = 0) => {
     const headers = { Authorization: `Bearer ${githubToken}` };
     const mergeUrl = `https://api.github.com/repos/${org}/${repo}/pulls/${prNumber}/merge`;
-    const maxAttempts = 3;
+    const maxAttempts = 5;
     const retryDelay = 5000;
 
     try {
