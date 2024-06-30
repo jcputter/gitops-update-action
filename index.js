@@ -171,7 +171,7 @@ const createLabel = async (repo, labelName, labelColor, githubToken, org) => {
             return null;
         }
     } catch (error) {
-        if (error.response == 422 ) {
+        if (error.response.status == 422 ) {
             console.error(`🚨 Failed to create label '${labelName}' already exists`);
         } else {
             console.error(`💩 Failed to create label '${labelName}'. Error: ${error.message}`);
