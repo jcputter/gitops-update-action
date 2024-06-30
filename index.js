@@ -15,13 +15,13 @@ const env = process.env.ENVIRONMENT;
 const repo = process.env.REPO;
 const org = process.env.ORG;
 
-console.log(githubToken)
-console.log(fileName)
-console.log(tag)
-console.log(service)
-console.log(env)
-console.log(repo)
-console.log(org)
+console.log(`GITHUB_TOKEN: ${githubToken}`);
+console.log(`FILENAME: ${fileName}`);
+console.log(`TAG: ${tag}`);
+console.log(`SERVICE: ${service}`);
+console.log(`ENVIRONMENT: ${env}`);
+console.log(`REPO: ${repo}`);
+console.log(`ORG: ${org}`);
 
 
 if (!githubToken) {
