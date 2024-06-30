@@ -4,14 +4,14 @@ Usage:
 
 ```
 - name: Update Deployment
-  uses: yourusername/gitops-update@main
+  uses: jcputter/gitops-update@main
   with:
-    token: ${{ secrets.GIT_OPS_TOKEN }}
+    token: GithubAPIToken
     filename: "charts/services/${{ secrets.SERVICE_NAME }}/values-${{ github.event.inputs.environment }}.yaml"
-    tag: ${{ env.TAG }}
-    service: ${{ secrets.SERVICE_NAME }}
-    environment: ${{ github.event.inputs.environment }}
-    repo: "git@github.com/YourOrganization/your-repo.git"
-    key: ${{ secrets.GITOPS_KEY }}
+    tag: containerTag
+    service: yourService
+    environment: dev
+    repo: "git@github.com/userOrOrg/your-repo.git"
+    key: yourSSHkey
     org: YourOrganization
 ```
