@@ -250,11 +250,8 @@ const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, o
     tmp.setGracefulCleanup();
 
     try {
-        // Configure SSH
         await configureSSH(githubDeployKey);
         await configureGitUser("jcputter@gmail.com", "JC Putter");
-
-        // Clone the repository
         await cloneRepository(repo, tmpdir);
         const git = createGitRepo(tmpdir, repo);
         const branchName = `update-${env}-${service}-${tag}`;
