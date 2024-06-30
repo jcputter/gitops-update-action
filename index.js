@@ -228,7 +228,7 @@ const createPullRequest = async (repo, branchName, baseBranch, title, body, gith
     } catch (error) {
         if (error.response) {
             if (error.response.status === 422) {
-                console.log(`🚨 Pull request already exists or there is another validation error: ${error.response.data.message}`);
+                console.log(`🚨 Pull request already exists`);
                 return null;
             } else {
                 console.error(`💩 Failed to create pull request. Status Code: ${error.response.status}, Response: ${error.response.data}`);
@@ -253,7 +253,7 @@ const mergePullRequest = async (prNumber, githubToken, org, repo) => {
 };
 
 const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, org, env) => {
-    console.log(`Checking out ${repo}`);
+    console.log(`⏳ Checking out ${repo}`);
     const tmpdir = tmp.dirSync().name;
     tmp.setGracefulCleanup();
 
