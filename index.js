@@ -219,6 +219,8 @@ const createPullRequest = async (repo, branchName, baseBranch, title, body, gith
         const prNumber = response.data.number;
         console.log(`Pull request created successfully: ${response.data.html_url}`);
         return prNumber;
+    } else if (response.status === 422) {
+        console.log(`Pull request already exist: ${response.data.html_url}`);
     } else {
         console.log(`💩 Failed to create pull request. Status Code: ${response.status}, Response: ${response.data}`);
         return null;
