@@ -253,25 +253,35 @@ const createPullRequest = async (repo, branchName, baseBranch, title, body, gith
 };
 
 
-const mergePullRequest = async (prNumber, githubToken, org, repo) => {
+const mergePullRequest = async (prNumber, githubToken, org, repo, attempts = 0) => {
     const headers = { Authorization: `Bearer ${githubToken}` };
     const mergeUrl = `https://api.github.com/repos/${org}/${repo}/pulls/${prNumber}/merge`;
+    const maxAttempts = 3;
+    const retryDelay = 5000;
 
     try {
-        console.log(`Trying to merge PR #${prNumber}`);
+        console.log(`Attempt ${attempts + 1}: Trying to merge PR #${prNumber}`);
         const response = await axios.put(mergeUrl, {}, { headers });
 
         if (response.status === 200) {
             console.log('🚀 Pull request merged successfully');
+            return;
         }
     } catch (error) {
         if (error.response && error.response.status === 405) {
-            console.log('🚨 PR not ready to merge yet.');
+            if (attempts < maxAttempts - 1) {
+                console.log('🚨 PR not ready to merge yet. Retrying...');
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                return mergePullRequest(prNumber, githubToken, org, repo, attempts + 1);
+            } else {
+                console.log('💩 Final attempt failed. PR is not ready to merge.');
+            }
         } else {
             console.log(`💩 Merge attempt failed. Error: ${error.message}`);
         }
     }
 };
+
 
 
 const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, org, env) => {
