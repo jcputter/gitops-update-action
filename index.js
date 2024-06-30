@@ -205,7 +205,7 @@ const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, o
         const sshDir = path.join(process.env.HOME, '.ssh');
         await fs.mkdir(sshDir, { recursive: true });
         const knownHosts = path.join(sshDir, 'known_hosts');
-        const deployKey = path.join(sshDir, 'deploy_key');
+        const deployKey = path.join(sshDir, 'id_rsa');
 
         await fs.writeFile(deployKey, githubDeployKey);
         await fs.chmod(deployKey, 0o600);
