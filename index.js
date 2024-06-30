@@ -52,7 +52,7 @@ if (!org) {
 }
 
 if (!githubDeployKey) {
-    console.log('GITHUB_DEPLOY_KEY environment variable is not set.');
+    console.log('INPUT_KEY environment variable is not set.');
     process.exit(1);
 }
 
