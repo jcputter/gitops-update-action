@@ -7,13 +7,13 @@ const path = require('path');
 const asyncRetry = require('async-retry');
 
 
-const githubToken = process.env.GITHUB_TOKEN;
-const fileName = process.env.FILENAME;
-const tag = process.env.TAG;
-const service = process.env.SERVICE;
-const env = process.env.ENVIRONMENT;
-const repo = process.env.REPO;
-const org = process.env.ORG;
+const githubToken = process.env.INPUT_GITHUB_TOKEN;
+const fileName = process.env.INPUT_FILENAME;
+const tag = process.env.INPUT_TAG;
+const service = process.env.INPUT_SERVICE;
+const env = process.env.INPUT_ENVIRONMENT;
+const repo = process.env.INPUT_REPO;
+const org = process.env.INPUT_ORG;
 
 console.log(`GITHUB_TOKEN: ${githubToken}`);
 console.log(`FILENAME: ${fileName}`);
