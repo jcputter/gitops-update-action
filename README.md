@@ -1,5 +1,8 @@
 Github Action to update helm values file during your build pipeline. 
 
+- Updates image tags
+- Creates PR and merges it
+
 Usage:
 
 ```
