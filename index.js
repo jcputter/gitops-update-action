@@ -141,7 +141,7 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
             retries: 3,
             minTimeout: 5000,
             onRetry: (err, attempt) => {
-                console.log(`Retry ${attempt} due to error: ${err.message}`);
+                console.log(`🚨 Retry ${attempt} due to error: ${err.message}`);
             }
         }
     );
@@ -161,18 +161,18 @@ const createLabel = async (repo, labelName, labelColor, githubToken, org) => {
         const response = await axios.post(labelUrl, labelData, { headers });
 
         if (response.status === 201) {
-            console.log(`Label '${labelName}' created successfully.`);
+            console.log(`✅ Label '${labelName}' created successfully.`);
             return true;
         } else if (response.status === 422) {
             console.log(`🚨 Label '${labelName}' already exists.`);
             return true;
         } else {
-            console.log(`💩 Failed to create label '${labelName}'. Status Code: ${response.status}, Response: ${response.data}`);
+            console.log(`💩 Failed to create label '${labelName}'. Status Code: ${response.status}`);
             return false;
         }
     } catch (error) {
         if (error.response) {
-            console.error(`💩 Failed to create label '${labelName}'. Status Code: ${error.response.status}, Response: ${error.response.data}`);
+            console.error(`💩 Failed to create label '${labelName}'. Status Code: ${error.response.status}`);
         } else {
             console.error(`💩 Failed to create label '${labelName}'. Error: ${error.message}`);
         }
@@ -191,7 +191,7 @@ const addLabelsToPullRequest = async (prNumber, labels, githubToken, org, repo) 
     const response = await axios.post(labelsUrl, data, { headers });
 
     if (response.status === 200) {
-        console.log(`Labels added to pull request ${prNumber}`);
+        console.log(`✅ Labels added to pull request ${prNumber}`);
     } else {
         console.log(`Failed to add labels to pull request ${prNumber}. Status Code: ${response.status}, Response: ${response.data}`);
     }
@@ -219,22 +219,22 @@ const createPullRequest = async (repo, branchName, baseBranch, title, body, gith
 
         if (response.status === 201) {
             const prNumber = response.data.number;
-            console.log(`Pull request created successfully: ${response.data.html_url}`);
+            console.log(`✅ Pull request created successfully: ${response.data.html_url}`);
             return prNumber;
         } else {
-            console.log(`Unexpected status code: ${response.status}, Response: ${response.data}`);
+            console.log(`💩 Unexpected status code: ${response.status}, Response: ${response.data}`);
             return null;
         }
     } catch (error) {
         if (error.response) {
             if (error.response.status === 422) {
-                console.log(`Pull request already exists or there is another validation error: ${error.response.data.message}`);
+                console.log(`🚨 Pull request already exists or there is another validation error: ${error.response.data.message}`);
                 return null;
             } else {
-                console.error(`Failed to create pull request. Status Code: ${error.response.status}, Response: ${error.response.data}`);
+                console.error(`💩 Failed to create pull request. Status Code: ${error.response.status}, Response: ${error.response.data}`);
             }
         } else {
-            console.error(`Failed to create pull request. Error: ${error.message}`);
+            console.error(`💩 Failed to create pull request. Error: ${error.message}`);
         }
         return null;
     }
@@ -246,9 +246,9 @@ const mergePullRequest = async (prNumber, githubToken, org, repo) => {
     const response = await axios.put(mergeUrl, {}, { headers });
 
     if (response.status === 200) {
-        console.log('Pull request merged successfully');
+        console.log('✅ Pull request merged successfully');
     } else {
-        console.log(`Failed to merge pull request. Status Code: ${response.status}, Response: ${response.data}`);
+        console.log(`💩 Failed to merge pull request. Status Code: ${response.status}, Response: ${response.data}`);
     }
 };
 
