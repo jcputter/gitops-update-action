@@ -7,7 +7,7 @@ Usage:
   uses: jcputter/gitops-update@main
   with:
     token: GithubAPIToken
-    filename: "charts/services/${{ secrets.SERVICE_NAME }}/values-${{ github.event.inputs.environment }}.yaml"
+    filename: "charts/services/yourService/values-${{ github.event.inputs.environment }}.yaml"
     tag: containerTag
     service: yourService
     environment: dev
