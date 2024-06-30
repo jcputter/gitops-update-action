@@ -2,28 +2,28 @@ name: 'GitOps Update'
 description: 'Updates image tags for your helm charts'
 author: 'jcputter@gmail.com'
 inputs:
-  SERVICE:
+  service:
     description: 'Name of the service'
     required: true
-  ENVIRONMENT:
+  environment:
     description: 'The deployment environment'
     required: true
-  FILENAME:
+  filename:
     description: 'The file path location of the values file'
     required: true
-  TAG:
+  tag:
     description: 'Image tag to update'
     required: true
-  GITHUB_DEPLOY_KEY:
+  github-deploy-key:
     description: 'GitHub deploy key'
     required: true
-  GITHUB_TOKEN:
+  github-token:
     description: 'GitHub Token for API access'
     required: true
-  REPO:
+  repo:
     description: 'Helm Repo'
     required: true
-  ORG:
+  org:
     description: 'GitHub Org or Username'
     required: true
 
