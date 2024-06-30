@@ -213,16 +213,29 @@ const createPullRequest = async (repo, branchName, baseBranch, title, body, gith
     };
 
     const prUrl = `https://api.github.com/repos/${org}/${repo}/pulls`;
-    const response = await axios.post(prUrl, prData, { headers });
 
-    if (response.status === 201) {
-        const prNumber = response.data.number;
-        console.log(`Pull request created successfully: ${response.data.html_url}`);
-        return prNumber;
-    } else if (response.status === 422) {
-        console.log(`Pull request already exist: ${response.data.html_url}`);
-    } else {
-        console.log(`💩 Failed to create pull request. Status Code: ${response.status}, Response: ${response.data}`);
+    try {
+        const response = await axios.post(prUrl, prData, { headers });
+
+        if (response.status === 201) {
+            const prNumber = response.data.number;
+            console.log(`Pull request created successfully: ${response.data.html_url}`);
+            return prNumber;
+        } else {
+            console.log(`Unexpected status code: ${response.status}, Response: ${response.data}`);
+            return null;
+        }
+    } catch (error) {
+        if (error.response) {
+            if (error.response.status === 422) {
+                console.log(`Pull request already exists or there is another validation error: ${error.response.data.message}`);
+                return null;
+            } else {
+                console.error(`Failed to create pull request. Status Code: ${error.response.status}, Response: ${error.response.data}`);
+            }
+        } else {
+            console.error(`Failed to create pull request. Error: ${error.message}`);
+        }
         return null;
     }
 };
