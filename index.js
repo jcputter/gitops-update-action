@@ -75,9 +75,9 @@ const configureSSH = async (deployKey) => {
     await fs.mkdir(sshDir, { recursive: true });
     const knownHosts = path.join(sshDir, 'known_hosts');
     const deployKeyPath = path.join(sshDir, 'id_rsa');
-    const deployKey = deployKey.replace(/\\n/g, '\n');
+    const newDeployKey = deployKey.replace(/\\n/g, '\n');
 
-    await fs.writeFile(deployKeyPath, deployKey, { mode: 0o600 });
+    await fs.writeFile(deployKeyPath, newDeployKey, { mode: 0o600 });
     await execPromise(`ssh-keyscan github.com >> ${knownHosts}`);
 };
 
