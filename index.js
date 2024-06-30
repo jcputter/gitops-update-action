@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 const { promises: fs } = require('fs');
 const tmp = require('tmp');
 const simpleGit = require('simple-git');
