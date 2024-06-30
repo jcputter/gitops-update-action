@@ -256,4 +256,19 @@ const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, o
         await createLabel(shortRepoName, env, 'FFFFFF', githubToken, org);
         await createLabel(shortRepoName, service, '0075ca', githubToken, org);
 
-        const prNumber = await createPullRequest(shortRepoName, branchName, 'main', `
+        const prNumber = await createPullRequest(shortRepoName, branchName, 'main', `chore: update ${env}-${service} to tag ${tag}`,
+            `Updating ${filename} to use tag ${tag}`, githubToken, org, 'deployment', env);
+
+        if (prNumber !== null) {
+            await addLabelsToPullRequest(prNumber, ['deployment', env, service], githubToken, org, shortRepoName);
+            await mergePullRequest(prNumber, githubToken, org, shortRepoName);
+        }
+    } finally {
+        tmp.setGracefulCleanup();
+    }
+};
+
+const shortRepoName = getShortRepoName(repo);
+if (!shortRepoName) process.exit(1);
+
+gitCommitAndCreatePr(fileName, repo, tag, githubToken, service, org, env);
