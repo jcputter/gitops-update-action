@@ -118,8 +118,8 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     try {
         fileContent = await fs.readFile(filePath, 'utf8');
     } catch (error) {
-        console.log(`💩 Failed to read file ${filePath}. Error: ${error.message}`);
-        return;
+        console.log(`🚨 Failed to locate the values file for ${env}, maybe the wrong environment ?`);
+        process.exit(1)
     }
 
     const data = yaml.load(fileContent);
@@ -135,7 +135,7 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
         await fs.writeFile(filePath, yaml.dump(data), 'utf8');
     } catch (error) {
         console.log(`💩 Failed to write to file ${filePath}. Error: ${error.message}`);
-        return;
+        process.exit(1)
     }
 };
 
