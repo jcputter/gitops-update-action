@@ -14,54 +14,45 @@ const service = process.env.INPUT_SERVICE;
 const env = process.env.INPUT_ENVIRONMENT;
 const repo = process.env.INPUT_REPO;
 const org = process.env.INPUT_ORG;
-const githubDeployKey = process.env.INPUT_SSH_KEY;
-
-console.log(`GITHUB_TOKEN: ${githubToken}`);
-console.log(`FILENAME: ${fileName}`);
-console.log(`TAG: ${tag}`);
-console.log(`SERVICE: ${service}`);
-console.log(`ENVIRONMENT: ${env}`);
-console.log(`REPO: ${repo}`);
-console.log(`ORG: ${org}`);
-console.log(`SSH_KEY: ${githubDeployKey}`);
+const githubDeployKey = process.env.INPUT_KEY;
 
 if (!githubToken) {
-    console.log('💩 GITHUB_TOKEN environment variable is not set. 💩');
+    console.log('💩 GITHUB_TOKEN environment variable is not set');
     process.exit(1);
 }
 
 if (!fileName) {
-    console.log('💩 FILENAME environment variable is not set. 💩');
+    console.log('💩 FILENAME environment variable is not set');
     process.exit(1);
 }
 
 if (!tag) {
-    console.log('💩 TAG environment variable is not set. 💩');
+    console.log('💩 TAG environment variable is not set');
     process.exit(1);
 }
 
 if (!env) {
-    console.log('💩 ENVIRONMENT environment variable is not set. 💩');
+    console.log('💩 ENVIRONMENT environment variable is not set');
     process.exit(1);
 }
 
 if (!service) {
-    console.log('💩 SERVICE environment variable is not set. 💩');
+    console.log('💩 SERVICE environment variable is not set');
     process.exit(1);
 }
 
 if (!repo) {
-    console.log('💩 REPO environment variable is not set. 💩');
+    console.log('💩 REPO environment variable is not set');
     process.exit(1);
 }
 
 if (!org) {
-    console.log('💩 ORG environment variable is not set. 💩');
+    console.log('💩 ORG environment variable is not set');
     process.exit(1);
 }
 
 if (!githubDeployKey) {
-    console.log('💩 GITHUB_DEPLOY_KEY environment variable is not set. 💩');
+    console.log('💩 KEY environment variable is not set');
     process.exit(1);
 }
 

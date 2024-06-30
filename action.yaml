@@ -14,7 +14,7 @@ inputs:
   tag:
     description: 'Image tag to update'
     required: true
-  ssh-key:
+  key:
     description: 'GitHub deploy key'
     required: true
   token:
