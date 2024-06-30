@@ -113,7 +113,15 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     const branchName = `update-${env}-${service}-${tag}`;
 
     await git.checkoutLocalBranch(branchName);
-    const fileContent = await fs.readFile(filePath, 'utf8');
+    
+    let fileContent;
+    try {
+        fileContent = await fs.readFile(filePath, 'utf8');
+    } catch (error) {
+        console.log(`💩 Failed to read file ${filePath}. Error: ${error.message}`);
+        return;
+    }
+
     const data = yaml.load(fileContent);
 
     if (data.image.tag === tag) {
@@ -129,22 +137,6 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
         console.log(`💩 Failed to write to file ${filePath}. Error: ${error.message}`);
         return;
     }
-
-    await git.add('.');
-    await git.commit(`chore: updating ${env}-${service} with ${tag}`);
-
-    await asyncRetry(
-        async () => {
-            await git.push('upstream', branchName);
-        },
-        {
-            retries: 3,
-            minTimeout: 5000,
-            onRetry: (err, attempt) => {
-                console.log(`🚨 Retry ${attempt} due to error: ${err.message}`);
-            }
-        }
-    );
 };
 
 const createLabel = async (repo, labelName, labelColor, githubToken, org) => {
