@@ -70,6 +70,13 @@ const execPromise = (command) => {
     });
 };
 
+
+const configureGitUser = async (email, name) => {
+    await execPromise(`git config --global user.email "${email}"`);
+    await execPromise(`git config --global user.name "${name}"`);
+};
+
+
 const configureSSH = async (deployKey) => {
     const sshDir = path.join(process.env.HOME, '.ssh');
     await fs.mkdir(sshDir, { recursive: true });
@@ -227,6 +234,7 @@ const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, o
     try {
         // Configure SSH
         await configureSSH(githubDeployKey);
+        await configureGitUser("jc@gmail.com", "JC Putter");
 
         // Clone the repository
         await cloneRepository(repo, tmpdir);
