@@ -16,7 +16,7 @@ const service = process.env.INPUT_SERVICE;
 const env = process.env.INPUT_ENVIRONMENT;
 const repo = process.env.INPUT_REPO;
 const org = process.env.INPUT_ORG;
-const githubDeployKey = process.env.INPUT_GITHUB_DEPLOY_KEY;
+const githubDeployKey = process.env.INPUT_KEY;
 
 console.log(`GITHUB_TOKEN: ${githubToken}`);
 console.log(`FILENAME: ${fileName}`);
