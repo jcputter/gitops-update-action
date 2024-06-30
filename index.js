@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const { promises: fs } = require('fs');
 const tmp = require('tmp');
 const simpleGit = require('simple-git');
@@ -14,47 +16,84 @@ const service = process.env.INPUT_SERVICE;
 const env = process.env.INPUT_ENVIRONMENT;
 const repo = process.env.INPUT_REPO;
 const org = process.env.INPUT_ORG;
-const githubDeployKey = process.env.INPUT_KEY;
+const githubDeployKey = process.env.INPUT_GITHUB_DEPLOY_KEY;
+
+console.log(`GITHUB_TOKEN: ${githubToken}`);
+console.log(`FILENAME: ${fileName}`);
+console.log(`TAG: ${tag}`);
+console.log(`SERVICE: ${service}`);
+console.log(`ENVIRONMENT: ${env}`);
+console.log(`REPO: ${repo}`);
+console.log(`ORG: ${org}`);
+console.log(`SSH_KEY: ${githubDeployKey}`);
 
 if (!githubToken) {
-    console.log('💩 GITHUB_TOKEN environment variable is not set');
+    console.log('GITHUB_TOKEN environment variable is not set.');
     process.exit(1);
 }
 
 if (!fileName) {
-    console.log('💩 FILENAME environment variable is not set');
+    console.log('FILENAME environment variable is not set.');
     process.exit(1);
 }
 
 if (!tag) {
-    console.log('💩 TAG environment variable is not set');
+    console.log('TAG environment variable is not set.');
     process.exit(1);
 }
 
 if (!env) {
-    console.log('💩 ENVIRONMENT environment variable is not set');
+    console.log('ENVIRONMENT environment variable is not set.');
     process.exit(1);
 }
 
 if (!service) {
-    console.log('💩 SERVICE environment variable is not set');
+    console.log('SERVICE environment variable is not set.');
     process.exit(1);
 }
 
 if (!repo) {
-    console.log('💩 REPO environment variable is not set');
+    console.log('REPO environment variable is not set.');
     process.exit(1);
 }
 
 if (!org) {
-    console.log('💩 ORG environment variable is not set');
+    console.log('ORG environment variable is not set.');
     process.exit(1);
 }
 
 if (!githubDeployKey) {
-    console.log('💩 KEY environment variable is not set');
+    console.log('GITHUB_DEPLOY_KEY environment variable is not set.');
     process.exit(1);
 }
+
+const execPromise = (command) => {
+    return new Promise((resolve, reject) => {
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(stdout);
+            }
+        });
+    });
+};
+
+const configureSSH = async (deployKey) => {
+    const sshDir = path.join(process.env.HOME, '.ssh');
+    await fs.mkdir(sshDir, { recursive: true });
+    const knownHosts = path.join(sshDir, 'known_hosts');
+    const deployKeyPath = path.join(sshDir, 'deploy_key');
+
+    await fs.writeFile(deployKeyPath, deployKey, { mode: 0o600 });
+    
+    // Start the SSH agent and add the key
+    await execPromise('eval $(ssh-agent -s)');
+    await execPromise(`ssh-add ${deployKeyPath}`);
+    
+    // Add GitHub to known hosts
+    await execPromise(`ssh-keyscan github.com >> ${knownHosts}`);
+};
 
 const cloneRepository = async (repo, tmpdir) => {
     const git = simpleGit();
@@ -72,7 +111,7 @@ const getShortRepoName = (repo) => {
     if (match) {
         return match[1];
     } else {
-        console.log('💩 Unable to extract repository name.');
+        console.log('Unable to extract repository name.');
         return null;
     }
 };
@@ -86,7 +125,7 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     const data = yaml.load(fileContent);
 
     if (data.image.tag === tag) {
-        console.log(`🚨 Tag already set, ${tag}`);
+        console.log(`Tag already set, ${tag}`);
         return;
     }
 
@@ -95,7 +134,7 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     try {
         await fs.writeFile(filePath, yaml.dump(data), 'utf8');
     } catch (error) {
-        console.log(`💩 Could not update the values file, maybe wrong environment ?. Error: ${error.message}`);
+        console.log(`Failed to write to file ${filePath}. Error: ${error.message}`);
         return;
     }
 
@@ -110,7 +149,7 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
             retries: 3,
             minTimeout: 5000,
             onRetry: (err, attempt) => {
-                console.log(`🚨 Retry ${attempt} due to error: ${err.message}`);
+                console.log(`Retry ${attempt} due to error: ${err.message}`);
             }
         }
     );
@@ -128,13 +167,13 @@ const createLabel = async (repo, labelName, labelColor, githubToken, org) => {
     const response = await axios.post(labelUrl, labelData, { headers });
 
     if (response.status === 201) {
-        console.log(`✅ Label '${labelName}' created successfully.`);
+        console.log(`Label '${labelName}' created successfully.`);
         return true;
     } else if (response.status === 422) {
-        console.log(`✅ Label '${labelName}' already exists.`);
+        console.log(`Label '${labelName}' already exists.`);
         return true;
     } else {
-        console.log(`💩 Failed to create label '${labelName}'. Status Code: ${response.status}, Response: ${response.data}`);
+        console.log(`Failed to create label '${labelName}'. Status Code: ${response.status}, Response: ${response.data}`);
         return false;
     }
 };
@@ -149,9 +188,9 @@ const addLabelsToPullRequest = async (prNumber, labels, githubToken, org, repo) 
     const response = await axios.post(labelsUrl, data, { headers });
 
     if (response.status === 200) {
-        console.log(`✅ Labels added to pull request ${prNumber}`);
+        console.log(`Labels added to pull request ${prNumber}`);
     } else {
-        console.log(`💩 Failed to add labels to pull request ${prNumber}. Status Code: ${response.status}, Response: ${response.data}`);
+        console.log(`Failed to add labels to pull request ${prNumber}. Status Code: ${response.status}, Response: ${response.data}`);
     }
 };
 
@@ -175,10 +214,10 @@ const createPullRequest = async (repo, branchName, baseBranch, title, body, gith
 
     if (response.status === 201) {
         const prNumber = response.data.number;
-        console.log(`✅ Pull request created successfully: ${response.data.html_url}`);
+        console.log(`Pull request created successfully: ${response.data.html_url}`);
         return prNumber;
     } else {
-        console.log(`💩 Failed to create pull request. Status Code: ${response.status}, Response: ${response.data}`);
+        console.log(`Failed to create pull request. Status Code: ${response.status}, Response: ${response.data}`);
         return null;
     }
 };
@@ -189,37 +228,20 @@ const mergePullRequest = async (prNumber, githubToken, org, repo) => {
     const response = await axios.put(mergeUrl, {}, { headers });
 
     if (response.status === 200) {
-        console.log('✅ Pull request merged successfully');
+        console.log('Pull request merged successfully');
     } else {
-        console.log(`💩 Failed to merge pull request. Status Code: ${response.status}, Response: ${response.data}`);
+        console.log(`Failed to merge pull request. Status Code: ${response.status}, Response: ${response.data}`);
     }
 };
 
 const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, org, env) => {
-    console.log(`⏳ Checking out ${repo}`);
+    console.log(`Checking out ${repo}`);
     const tmpdir = tmp.dirSync().name;
     tmp.setGracefulCleanup();
 
     try {
         // Configure SSH
-        const sshDir = path.join(process.env.HOME, '.ssh');
-        await fs.mkdir(sshDir, { recursive: true });
-        const knownHosts = path.join(sshDir, 'known_hosts');
-        const deployKey = path.join(sshDir, 'id_rsa');
-
-        await fs.writeFile(deployKey, githubDeployKey);
-        await fs.chmod(deployKey, 0o600);
-
-        // Add GitHub.com to known hosts
-        await new Promise((resolve, reject) => {
-            exec(`ssh-keyscan github.com >> ${knownHosts}`, (error, stdout, stderr) => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(stdout);
-                }
-            });
-        });
+        await configureSSH(githubDeployKey);
 
         // Clone the repository
         await cloneRepository(repo, tmpdir);
@@ -234,19 +256,4 @@ const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, o
         await createLabel(shortRepoName, env, 'FFFFFF', githubToken, org);
         await createLabel(shortRepoName, service, '0075ca', githubToken, org);
 
-        const prNumber = await createPullRequest(shortRepoName, branchName, 'main', `chore: update ${env}-${service} to tag ${tag}`,
-            `Updating ${filename} to use tag ${tag}`, githubToken, org, 'deployment', env);
-
-        if (prNumber !== null) {
-            await addLabelsToPullRequest(prNumber, ['deployment', env, service], githubToken, org, shortRepoName);
-            await mergePullRequest(prNumber, githubToken, org, shortRepoName);
-        }
-    } finally {
-        tmp.setGracefulCleanup();
-    }
-};
-
-const shortRepoName = getShortRepoName(repo);
-if (!shortRepoName) process.exit(1);
-
-gitCommitAndCreatePr(fileName, repo, tag, githubToken, service, org, env);
+        const prNumber = await createPullRequest(shortRepoName, branchName, 'main', `
