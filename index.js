@@ -18,15 +18,6 @@ const repo = process.env.INPUT_REPO;
 const org = process.env.INPUT_ORG;
 const githubDeployKey = process.env.INPUT_KEY;
 
-console.log(`GITHUB_TOKEN: ${githubToken}`);
-console.log(`FILENAME: ${fileName}`);
-console.log(`TAG: ${tag}`);
-console.log(`SERVICE: ${service}`);
-console.log(`ENVIRONMENT: ${env}`);
-console.log(`REPO: ${repo}`);
-console.log(`ORG: ${org}`);
-console.log(`SSH_KEY: ${githubDeployKey}`);
-
 if (!githubToken) {
     console.log('GITHUB_TOKEN environment variable is not set.');
     process.exit(1);
