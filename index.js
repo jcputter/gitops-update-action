@@ -263,8 +263,6 @@ const mergePullRequest = async (prNumber, githubToken, org, repo) => {
 
         if (response.status === 200) {
             console.log('🚀 Pull request merged successfully');
-        } else {
-            console.log(`💩 Failed to merge pull request. Status Code: ${response.status}, Response: ${response.data}`);
         }
     } catch (error) {
         if (error.response && error.response.status === 405) {
@@ -274,7 +272,6 @@ const mergePullRequest = async (prNumber, githubToken, org, repo) => {
         }
     }
 };
-
 
 
 const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, org, env) => {
