@@ -234,7 +234,7 @@ const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, o
     try {
         // Configure SSH
         await configureSSH(githubDeployKey);
-        await configureGitUser("jc@gmail.com", "JC Putter");
+        await configureGitUser("jcputter@gmail.com", "JC Putter");
 
         // Clone the repository
         await cloneRepository(repo, tmpdir);
