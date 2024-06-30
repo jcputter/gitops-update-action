@@ -175,22 +175,18 @@ const createLabel = async (repo, labelName, labelColor, githubToken, org) => {
         if (response.status === 201) {
             console.log(`✅ Label '${labelName}' created successfully.`);
             return true;
-        } else if (response.status === 422) {
-            console.log(`🚨 Label '${labelName}' already exists.`);
-            return true;
-        } else {
-            console.log(`💩 Unexpected status code: ${response.status}, Response: ${response.data}`);
-            return null;
         }
     } catch (error) {
-        if (error.response.status == 422 ) {
-            console.error(`🚨 Failed to create label '${labelName}' already exists`);
+        if (error.response && error.response.status === 422) {
+            console.error(`🚨 Label '${labelName}' already exists.`);
+            return true;
         } else {
             console.error(`💩 Failed to create label '${labelName}'. Error: ${error.message}`);
+            return false;
         }
-        return false;
     }
 };
+
 
 
 const addLabelsToPullRequest = async (prNumber, labels, githubToken, org, repo) => {
