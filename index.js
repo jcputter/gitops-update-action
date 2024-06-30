@@ -252,12 +252,14 @@ const createPullRequest = async (repo, branchName, baseBranch, title, body, gith
     }
 };
 
+
 const mergePullRequest = async (prNumber, githubToken, org, repo) => {
     const headers = { Authorization: `Bearer ${githubToken}` };
     const mergeUrl = `https://api.github.com/repos/${org}/${repo}/pulls/${prNumber}/merge`;
 
-    const attemptMerge = async (bail) => {
+    const attemptMerge = async (bail, attempt) => {
         try {
+            console.log(`Attempt ${attempt}: Trying to merge PR #${prNumber}`);
             const response = await axios.put(mergeUrl, {}, { headers });
 
             if (response.status === 200) {
@@ -284,6 +286,7 @@ const mergePullRequest = async (prNumber, githubToken, org, repo) => {
     try {
         await retry(attemptMerge, {
             retries: 3,
+            minTimeout: 1000,
             maxTimeout: 5000,
         });
     } catch (error) {
