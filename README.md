@@ -7,7 +7,7 @@ Usage:
 
 ```
 - name: Update Deployment
-  uses: jcputter/gitops-update@main
+  uses: jcputter/gitops-update-action@main
   with:
     token: GithubAPIToken
     filename: charts/services/yourService/values-dev.yaml
