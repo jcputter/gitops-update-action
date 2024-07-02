@@ -68,12 +68,10 @@ const execPromise = (command) => {
     });
 };
 
-
 const configureGitUser = async (email, name) => {
     await execPromise(`git config --global user.email "${email}"`);
     await execPromise(`git config --global user.name "${name}"`);
 };
-
 
 const configureSSH = async (deployKey) => {
     const sshDir = path.join(process.env.HOME, '.ssh');
@@ -187,8 +185,6 @@ const createLabel = async (repo, labelName, labelColor, githubToken, org) => {
     }
 };
 
-
-
 const addLabelsToPullRequest = async (prNumber, labels, githubToken, org, repo) => {
     const labelsUrl = `https://api.github.com/repos/${org}/${repo}/issues/${prNumber}/labels`;
     const headers = {
@@ -272,39 +268,38 @@ const mergePullRequest = async (prNumber, githubToken, org, repo) => {
         Accept: 'application/vnd.github.v3+json'
     };
     const mergeUrl = `https://api.github.com/repos/${org}/${repo}/pulls/${prNumber}/merge`;
-
     const maxAttempts = 10;
     const retryDelay = 10000;
+
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         console.log(`Attempt ${attempt}: Checking if PR #${prNumber} is mergeable`);
         
         const isMergeable = await checkPullRequestMergeable(prNumber, githubToken, org, repo);
-
+        
         if (isMergeable) {
             try {
                 const response = await axios.put(mergeUrl, {}, { headers });
                 if (response.status === 200) {
                     console.log('🚀 Pull request merged successfully');
                     return;
+                } else {
+                    console.log(`💩 Merge attempt failed. Unexpected status: ${response.status}`);
                 }
             } catch (error) {
                 console.error(`💩 Failed to merge PR. Error: ${error.message}`);
             }
-            console.log('💩 Merge attempt failed. Will retry checking mergeable status.');
         } else {
-            console.log('🚨 PR is not mergeable yet. Will retry...');
+            console.log('🚨 PR is not mergeable yet.');
         }
 
         if (attempt < maxAttempts) {
-            console.log(`Waiting ${retryDelay / 1000} seconds before next attempt...`);
+            console.log(`Will retry in ${retryDelay / 1000} seconds...`);
             await new Promise(resolve => setTimeout(resolve, retryDelay));
         }
     }
 
     console.log(`💩 Failed to merge PR after ${maxAttempts} attempts.`);
 };
-
-
 
 const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, org, env) => {
     console.log(`⏳ Checking out ${repo}`);
