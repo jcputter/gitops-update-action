@@ -288,7 +288,7 @@ const mergePullRequest = async (prNumber, githubToken, org, repo) => {
                     return;
                 }
             } catch (error) {
-                console.error(`Failed to merge PR. Error: ${error.message}`);
+                console.error(`💩 Failed to merge PR. Error: ${error.message}`);
             }
             console.log('💩 Merge attempt failed. Will retry checking mergeable status.');
         } else {
