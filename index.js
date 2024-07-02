@@ -68,12 +68,10 @@ const execPromise = (command) => {
     });
 };
 
-
 const configureGitUser = async (email, name) => {
     await execPromise(`git config --global user.email "${email}"`);
     await execPromise(`git config --global user.name "${name}"`);
 };
-
 
 const configureSSH = async (deployKey) => {
     const sshDir = path.join(process.env.HOME, '.ssh');
@@ -187,8 +185,6 @@ const createLabel = async (repo, labelName, labelColor, githubToken, org) => {
     }
 };
 
-
-
 const addLabelsToPullRequest = async (prNumber, labels, githubToken, org, repo) => {
     const labelsUrl = `https://api.github.com/repos/${org}/${repo}/issues/${prNumber}/labels`;
     const headers = {
@@ -248,37 +244,62 @@ const createPullRequest = async (repo, branchName, baseBranch, title, body, gith
     }
 };
 
-
-const mergePullRequest = async (prNumber, githubToken, org, repo, attempts = 0) => {
-    const headers = { Authorization: `Bearer ${githubToken}` };
-    const mergeUrl = `https://api.github.com/repos/${org}/${repo}/pulls/${prNumber}/merge`;
-    const maxAttempts = 5;
-    const retryDelay = 5000;
+const checkPullRequestMergeable = async (prNumber, githubToken, org, repo) => {
+    const headers = { 
+        Authorization: `Bearer ${githubToken}`,
+        Accept: 'application/vnd.github.v3+json'
+    };
+    const prUrl = `https://api.github.com/repos/${org}/${repo}/pulls/${prNumber}`;
 
     try {
-        console.log(`Attempt ${attempts + 1}: Trying to merge PR #${prNumber}`);
-        const response = await axios.put(mergeUrl, {}, { headers });
-
+        const response = await axios.get(prUrl, { headers });
         if (response.status === 200) {
-            console.log('🚀 Pull request merged successfully');
-            return;
+            return response.data.mergeable;
         }
     } catch (error) {
-        if (error.response && error.response.status === 405) {
-            if (attempts < maxAttempts - 1) {
-                console.log('🚨 PR not ready to merge yet. Retrying...');
-                await new Promise(resolve => setTimeout(resolve, retryDelay));
-                return mergePullRequest(prNumber, githubToken, org, repo, attempts + 1);
-            } else {
-                console.log('💩 Final attempt failed. PR is not ready to merge.');
-            }
-        } else {
-            console.log(`💩 Merge attempt failed. Error: ${error.message}`);
-        }
+        console.error(`Failed to check PR mergeable status. Error: ${error.message}`);
     }
+    return false;
 };
 
+const mergePullRequest = async (prNumber, githubToken, org, repo) => {
+    const headers = { 
+        Authorization: `Bearer ${githubToken}`,
+        Accept: 'application/vnd.github.v3+json'
+    };
+    const mergeUrl = `https://api.github.com/repos/${org}/${repo}/pulls/${prNumber}/merge`;
+    const maxAttempts = 10;
+    const retryDelay = 10000;
 
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        console.log(`Attempt ${attempt}: Checking if PR #${prNumber} is mergeable`);
+        
+        const isMergeable = await checkPullRequestMergeable(prNumber, githubToken, org, repo);
+        
+        if (isMergeable) {
+            try {
+                const response = await axios.put(mergeUrl, {}, { headers });
+                if (response.status === 200) {
+                    console.log('🚀 Pull request merged successfully');
+                    return;
+                } else {
+                    console.log(`💩 Merge attempt failed. Unexpected status: ${response.status}`);
+                }
+            } catch (error) {
+                console.error(`💩 Failed to merge PR. Error: ${error.message}`);
+            }
+        } else {
+            console.log('🚨 PR is not mergeable yet.');
+        }
+
+        if (attempt < maxAttempts) {
+            console.log(`Will retry in ${retryDelay / 1000} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
+    }
+
+    console.log(`💩 Failed to merge PR after ${maxAttempts} attempts.`);
+};
 
 const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, org, env) => {
     console.log(`⏳ Checking out ${repo}`);
