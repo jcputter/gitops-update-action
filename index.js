@@ -132,7 +132,7 @@ const createLabel = async (repo, labelName, labelColor, org) => {
         return true;
     } catch (error) {
         if (error.status === 422) {
-            core.warning(`🚨 Label '${labelName}' already exists.`);
+            core.info(`🚨 Label '${labelName}' already exists.`);
             return true;
         } else {
             core.error(`💩 Failed to create label '${labelName}'. Error: ${error.message}`);
@@ -176,7 +176,7 @@ const createPullRequest = async (repo, branchName, baseBranch, title, body, org)
         }
     } catch (error) {
         if (error.status === 422) {
-            core.warning('🚨 Pull request already exists');
+            core.info('🚨 Pull request already exists');
         } else {
             core.error(`💩 Failed to create pull request. Error: ${error.message}`);
         }
@@ -220,7 +220,7 @@ const mergePullRequest = async (prNumber, org, repo) => {
                 core.error(`💩 Failed to merge PR. Error: ${error.message}`);
             }
         } else {
-            core.warning('🚨 PR is not mergeable yet.');
+            core.info('🚨 PR is not mergeable yet.');
         }
 
         if (attempt < maxAttempts) {
