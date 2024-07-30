@@ -1,66 +1,29 @@
+const core = require('@actions/core');
+const github = require('@actions/github');
 const { promises: fs } = require('fs');
 const tmp = require('tmp');
 const simpleGit = require('simple-git');
-const axios = require('axios');
 const yaml = require('js-yaml');
 const path = require('path');
 const asyncRetry = require('async-retry');
 const { exec } = require('child_process');
 
-const githubToken = process.env.INPUT_TOKEN;
-const fileName = process.env.INPUT_FILENAME;
-const tag = process.env.INPUT_TAG;
-const service = process.env.INPUT_SERVICE;
-const env = process.env.INPUT_ENVIRONMENT;
-const repo = process.env.INPUT_REPO;
-const org = process.env.INPUT_ORG;
-const githubDeployKey = process.env.INPUT_KEY;
+const githubToken = core.getInput('token', { required: true });
+const fileName = core.getInput('filename', { required: true });
+const tag = core.getInput('tag', { required: true });
+const service = core.getInput('service', { required: true });
+const env = core.getInput('environment', { required: true });
+const repo = core.getInput('repo', { required: true });
+const org = core.getInput('org', { required: true });
+const githubDeployKey = core.getInput('key', { required: true });
 
-if (!githubToken) {
-    console.log('GITHUB_TOKEN environment variable is not set.');
-    process.exit(1);
-}
-
-if (!fileName) {
-    console.log('FILENAME environment variable is not set.');
-    process.exit(1);
-}
-
-if (!tag) {
-    console.log('TAG environment variable is not set.');
-    process.exit(1);
-}
-
-if (!env) {
-    console.log('ENVIRONMENT environment variable is not set.');
-    process.exit(1);
-}
-
-if (!service) {
-    console.log('SERVICE environment variable is not set.');
-    process.exit(1);
-}
-
-if (!repo) {
-    console.log('REPO environment variable is not set.');
-    process.exit(1);
-}
-
-if (!org) {
-    console.log('ORG environment variable is not set.');
-    process.exit(1);
-}
-
-if (!githubDeployKey) {
-    console.log('INPUT_KEY environment variable is not set.');
-    process.exit(1);
-}
+const octokit = github.getOctokit(githubToken);
 
 const execPromise = (command) => {
     return new Promise((resolve, reject) => {
         exec(command, (error, stdout, stderr) => {
             if (error) {
-                reject(error);
+                reject(new Error(stderr));
             } else {
                 resolve(stdout);
             }
@@ -99,7 +62,7 @@ const getShortRepoName = (repo) => {
     if (match) {
         return match[1];
     } else {
-        console.log('💩 Unable to extract repository name.');
+        core.setFailed('Unable to extract repository name.');
         return null;
     }
 };
@@ -114,20 +77,20 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     try {
         fileContent = await fs.readFile(filePath, 'utf8');
     } catch (error) {
-        console.error(`💩 Failed to locate ${filePath}. Chart missing or wrong environment ?`);
-        process.exit(1);
+        core.setFailed(`Failed to locate ${filePath}. Chart missing or wrong environment?`);
+        return;
     }
 
     let data;
     try {
         data = yaml.load(fileContent);
     } catch (error) {
-        console.error(`💩 Failed to parse YAML from file ${filePath}. Error: ${error.message}`);
+        core.setFailed(`Failed to parse YAML from file ${filePath}. Error: ${error.message}`);
         return;
     }
 
     if (data.image.tag === tag) {
-        console.log(`🚨 Tag already set, ${tag}`);
+        core.warning(`Tag already set, ${tag}`);
         return;
     }
 
@@ -136,8 +99,8 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     try {
         await fs.writeFile(filePath, yaml.dump(data), 'utf8');
     } catch (error) {
-        console.error(`💩 Failed to write to file ${filePath}. Error: ${error.message}`);
-        process.exit(1);
+        core.setFailed(`Failed to write to file ${filePath}. Error: ${error.message}`);
+        return;
     }
 
     await git.add('.');
@@ -151,158 +114,126 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
             retries: 3,
             minTimeout: 5000,
             onRetry: (err, attempt) => {
-                console.log(`🚨 Retry ${attempt} due to error: ${err.message}`);
+                core.warning(`Retry ${attempt} due to error: ${err.message}`);
             }
         }
     );
 };
 
-const createLabel = async (repo, labelName, labelColor, githubToken, org) => {
-    const labelData = { name: labelName, color: labelColor };
-    const headers = {
-        Authorization: `Bearer ${githubToken}`,
-        'User-Agent': 'GitOps-Update',
-        Accept: 'application/vnd.github.v3+json'
-    };
-
-    const labelUrl = `https://api.github.com/repos/${org}/${repo}/labels`;
-
+const createLabel = async (repo, labelName, labelColor, org) => {
     try {
-        const response = await axios.post(labelUrl, labelData, { headers });
-
-        if (response.status === 201) {
-            console.log(`✅ Label '${labelName}' created successfully.`);
-            return true;
-        }
+        await octokit.rest.issues.createLabel({
+            owner: org,
+            repo: repo,
+            name: labelName,
+            color: labelColor
+        });
+        core.info(`✅ Label '${labelName}' created successfully.`);
+        return true;
     } catch (error) {
-        if (error.response && error.response.status === 422) {
-            console.error(`🚨 Label '${labelName}' already exists.`);
+        if (error.status === 422) {
+            core.warning(`🚨 Label '${labelName}' already exists.`);
             return true;
         } else {
-            console.error(`💩 Failed to create label '${labelName}'. Error: ${error.message}`);
+            core.error(`💩 Failed to create label '${labelName}'. Error: ${error.message}`);
             return false;
         }
     }
 };
 
-const addLabelsToPullRequest = async (prNumber, labels, githubToken, org, repo) => {
-    const labelsUrl = `https://api.github.com/repos/${org}/${repo}/issues/${prNumber}/labels`;
-    const headers = {
-        Authorization: `Bearer ${githubToken}`,
-        Accept: 'application/vnd.github.v3+json'
-    };
-    const data = { labels };
-    const response = await axios.post(labelsUrl, data, { headers });
-
-    if (response.status === 200) {
-        console.log(`✅ Labels added to pull request ${prNumber}`);
-    } else {
-        console.log(`Failed to add labels to pull request ${prNumber}. Status Code: ${response.status}, Response: ${response.data}`);
+const addLabelsToPullRequest = async (prNumber, labels, org, repo) => {
+    try {
+        await octokit.rest.issues.addLabels({
+            owner: org,
+            repo: repo,
+            issue_number: prNumber,
+            labels: labels
+        });
+        core.info(`✅ Labels added to pull request ${prNumber}`);
+    } catch (error) {
+        core.error(`Failed to add labels to pull request ${prNumber}. Error: ${error.message}`);
     }
 };
 
-const createPullRequest = async (repo, branchName, baseBranch, title, body, githubToken, org, deployLabel, environmentLabel) => {
-    const prData = {
-        title,
-        head: branchName,
-        base: baseBranch,
-        body,
-        labels: [deployLabel, environmentLabel]
-    };
-
-    const headers = {
-        Authorization: `Bearer ${githubToken}`,
-        'User-Agent': 'GitOps-Update',
-        Accept: 'application/vnd.github.v3+json'
-    };
-
-    const prUrl = `https://api.github.com/repos/${org}/${repo}/pulls`;
-
+const createPullRequest = async (repo, branchName, baseBranch, title, body, org) => {
     try {
-        const response = await axios.post(prUrl, prData, { headers });
+        const response = await octokit.rest.pulls.create({
+            owner: org,
+            repo: repo,
+            title: title,
+            head: branchName,
+            base: baseBranch,
+            body: body
+        });
 
         if (response.status === 201) {
             const prNumber = response.data.number;
-            console.log(`✅ Pull request created successfully: ${response.data.html_url}`);
+            core.info(`✅ Pull request created successfully: ${response.data.html_url}`);
             return prNumber;
         } else {
-            console.log(`💩 Unexpected status code: ${response.status}, Response: ${response.data}`);
+            core.error(`💩 Unexpected status code: ${response.status}`);
             return null;
         }
     } catch (error) {
-        if (error.response) {
-            if (error.response.status === 422) {
-                console.log(`🚨 Pull request already exists`);
-                return null;
-            } else {
-                console.error(`💩 Failed to create pull request. Status Code: ${error.response.status}, Response: ${error.response.data}`);
-            }
+        if (error.status === 422) {
+            core.warning('🚨 Pull request already exists');
         } else {
-            console.error(`💩 Failed to create pull request. Error: ${error.message}`);
+            core.error(`💩 Failed to create pull request. Error: ${error.message}`);
         }
         return null;
     }
 };
 
-const checkPullRequestMergeable = async (prNumber, githubToken, org, repo) => {
-    const headers = { 
-        Authorization: `Bearer ${githubToken}`,
-        Accept: 'application/vnd.github.v3+json'
-    };
-    const prUrl = `https://api.github.com/repos/${org}/${repo}/pulls/${prNumber}`;
-
+const checkPullRequestMergeable = async (prNumber, org, repo) => {
     try {
-        const response = await axios.get(prUrl, { headers });
-        if (response.status === 200) {
-            return response.data.mergeable;
-        }
+        const response = await octokit.rest.pulls.get({
+            owner: org,
+            repo: repo,
+            pull_number: prNumber
+        });
+        return response.data.mergeable;
     } catch (error) {
-        console.error(`Failed to check PR mergeable status. Error: ${error.message}`);
+        core.error(`Failed to check PR mergeable status. Error: ${error.message}`);
+        return false;
     }
-    return false;
 };
 
-const mergePullRequest = async (prNumber, githubToken, org, repo) => {
-    const headers = { 
-        Authorization: `Bearer ${githubToken}`,
-        Accept: 'application/vnd.github.v3+json'
-    };
-    const mergeUrl = `https://api.github.com/repos/${org}/${repo}/pulls/${prNumber}/merge`;
+const mergePullRequest = async (prNumber, org, repo) => {
     const maxAttempts = 10;
     const retryDelay = 10000;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        console.log(`Attempt ${attempt}: Checking if PR #${prNumber} is mergeable`);
+        core.info(`Attempt ${attempt}: Checking if PR #${prNumber} is mergeable`);
         
-        const isMergeable = await checkPullRequestMergeable(prNumber, githubToken, org, repo);
+        const isMergeable = await checkPullRequestMergeable(prNumber, org, repo);
         
         if (isMergeable) {
             try {
-                const response = await axios.put(mergeUrl, {}, { headers });
-                if (response.status === 200) {
-                    console.log('🚀 Pull request merged successfully');
-                    return;
-                } else {
-                    console.log(`💩 Merge attempt failed. Unexpected status: ${response.status}`);
-                }
+                await octokit.rest.pulls.merge({
+                    owner: org,
+                    repo: repo,
+                    pull_number: prNumber
+                });
+                core.info('🚀 Pull request merged successfully');
+                return;
             } catch (error) {
-                console.error(`💩 Failed to merge PR. Error: ${error.message}`);
+                core.error(`💩 Failed to merge PR. Error: ${error.message}`);
             }
         } else {
-            console.log('🚨 PR is not mergeable yet.');
+            core.warning('🚨 PR is not mergeable yet.');
         }
 
         if (attempt < maxAttempts) {
-            console.log(`Will retry in ${retryDelay / 1000} seconds...`);
+            core.info(`Will retry in ${retryDelay / 1000} seconds...`);
             await new Promise(resolve => setTimeout(resolve, retryDelay));
         }
     }
 
-    console.log(`💩 Failed to merge PR after ${maxAttempts} attempts.`);
+    core.setFailed(`Failed to merge PR after ${maxAttempts} attempts.`);
 };
 
-const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, org, env) => {
-    console.log(`⏳ Checking out ${repo}`);
+const gitCommitAndCreatePr = async (filename, repo, tag, service, org, env) => {
+    core.info(`⏳ Checking out ${repo}`);
     const tmpdir = tmp.dirSync().name;
     tmp.setGracefulCleanup();
 
@@ -317,25 +248,33 @@ const gitCommitAndCreatePr = async (filename, repo, tag, githubToken, service, o
         const shortRepoName = getShortRepoName(repo);
         if (!shortRepoName) return;
 
-        await createLabel(shortRepoName, 'deployment', '009800', githubToken, org);
-        await createLabel(shortRepoName, env, 'FFFFFF', githubToken, org);
-        await createLabel(shortRepoName, service, '0075ca', githubToken, org);
+        await createLabel(shortRepoName, 'deployment', '009800', org);
+        await createLabel(shortRepoName, env, 'FFFFFF', org);
+        await createLabel(shortRepoName, service, '0075ca', org);
 
         const prNumber = await createPullRequest(shortRepoName, branchName, 'main', `chore: update ${env}-${service} to tag ${tag}`,
-            `🚀 Updating ${filename} to use tag ${tag}`, githubToken, org, 'deployment', env);
-
-        console.log(prNumber)
+            `🚀 Updating ${filename} to use tag ${tag}`, org);
 
         if (prNumber !== null) {
-            await addLabelsToPullRequest(prNumber, ['deployment', env, service], githubToken, org, shortRepoName);
-            await mergePullRequest(prNumber, githubToken, org, shortRepoName);
+            await addLabelsToPullRequest(prNumber, ['deployment', env, service], org, shortRepoName);
+            await mergePullRequest(prNumber, org, shortRepoName);
         }
+    } catch (error) {
+        core.setFailed(`Error in gitCommitAndCreatePr: ${error.message}`);
     } finally {
         tmp.setGracefulCleanup();
     }
 };
 
-const shortRepoName = getShortRepoName(repo);
-if (!shortRepoName) process.exit(1);
+async function run() {
+    try {
+        const shortRepoName = getShortRepoName(repo);
+        if (!shortRepoName) return;
 
-gitCommitAndCreatePr(fileName, repo, tag, githubToken, service, org, env);
+        await gitCommitAndCreatePr(fileName, repo, tag, service, org, env);
+    } catch (error) {
+        core.setFailed(error.message);
+    }
+}
+
+run();
