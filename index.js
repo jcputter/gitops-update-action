@@ -9,6 +9,17 @@ const asyncRetry = require('async-retry');
 const { exec } = require('@actions/exec');
 const io = require('@actions/io');
 
+// Input validation function
+const getRequiredInput = (name) => {
+    const value = core.getInput(name, { required: true });
+    if (!value) {
+        core.setFailed(`Input required and not supplied: ${name}`);
+        throw new Error(`Input required and not supplied: ${name}`);
+    }
+    return value;
+};
+
+// Action inputs
 const githubToken = getRequiredInput('token');
 const fileName = getRequiredInput('filename');
 const tag = getRequiredInput('tag');
@@ -73,6 +84,7 @@ const getShortRepoName = (repo) => {
     if (match) {
         return match[1];
     } else {
+        core.setFailed('Unable to extract repository name.');
         throw new Error('Unable to extract repository name.');
     }
 };
@@ -87,14 +99,16 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     try {
         fileContent = await fs.readFile(filePath, 'utf8');
     } catch (error) {
-        throw new Error(`Failed to locate ${filePath}. Chart missing or wrong environment?`);
+        core.setFailed(`Failed to locate ${filePath}. Chart missing or wrong environment?`);
+        throw error;
     }
 
     let data;
     try {
         data = yaml.load(fileContent);
     } catch (error) {
-        throw new Error(`Failed to parse YAML from file ${filePath}. Error: ${error.message}`);
+        core.setFailed(`Failed to parse YAML from file ${filePath}. Error: ${error.message}`);
+        throw error;
     }
 
     if (data.image.tag === tag) {
@@ -107,7 +121,8 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     try {
         await fs.writeFile(filePath, yaml.dump(data), 'utf8');
     } catch (error) {
-        throw new Error(`Failed to write to file ${filePath}. Error: ${error.message}`);
+        core.setFailed(`Failed to write to file ${filePath}. Error: ${error.message}`);
+        throw error;
     }
 
     await git.add('.');
@@ -235,6 +250,7 @@ const mergePullRequest = async (prNumber, org, repo) => {
         }
     }
 
+    core.setFailed(`Failed to merge PR after ${maxAttempts} attempts.`);
     throw new Error(`Failed to merge PR after ${maxAttempts} attempts.`);
 };
 
@@ -266,6 +282,7 @@ const gitCommitAndCreatePr = async (filename, repo, tag, service, org, env) => {
         }
     } catch (error) {
         core.setFailed(`Error in gitCommitAndCreatePr: ${error.message}`);
+        throw error;
     } finally {
         tmp.setGracefulCleanup();
     }
@@ -276,7 +293,7 @@ async function run() {
         const shortRepoName = getShortRepoName(repository);
         await gitCommitAndCreatePr(fileName, repository, tag, service, organization, environment);
     } catch (error) {
-        core.setFailed(error.message);
+        core.setFailed(`Action failed: ${error.message}`);
     }
 }
 
