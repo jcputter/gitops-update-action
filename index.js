@@ -6,44 +6,55 @@ const simpleGit = require('simple-git');
 const yaml = require('js-yaml');
 const path = require('path');
 const asyncRetry = require('async-retry');
-const { exec } = require('child_process');
+const { exec } = require('@actions/exec');
+const io = require('@actions/io');
 
-const githubToken = core.getInput('token', { required: true });
-const fileName = core.getInput('filename', { required: true });
-const tag = core.getInput('tag', { required: true });
-const service = core.getInput('service', { required: true });
-const env = core.getInput('environment', { required: true });
-const repo = core.getInput('repo', { required: true });
-const org = core.getInput('org', { required: true });
-const githubDeployKey = core.getInput('key', { required: true });
+const githubToken = getRequiredInput('token');
+const fileName = getRequiredInput('filename');
+const tag = getRequiredInput('tag');
+const service = getRequiredInput('service');
+const environment = getRequiredInput('environment');
+const repository = getRequiredInput('repo');
+const organization = getRequiredInput('org');
+const githubDeployKey = getRequiredInput('key');
 
 const octokit = github.getOctokit(githubToken);
 
-const execPromise = (command) => {
-    return new Promise((resolve, reject) => {
-        exec(command, (error, stdout, stderr) => {
-            if (error) {
-                reject(new Error(stderr));
-            } else {
-                resolve(stdout);
+const execCommand = async (command, args = []) => {
+    let output = '';
+    let error = '';
+    const options = {
+        listeners: {
+            stdout: (data) => {
+                output += data.toString();
+            },
+            stderr: (data) => {
+                error += data.toString();
             }
-        });
-    });
+        }
+    };
+
+    try {
+        await exec(command, args, options);
+        return output.trim();
+    } catch (err) {
+        throw new Error(`Command failed: ${error}`);
+    }
 };
 
 const configureGitUser = async (email, name) => {
-    await execPromise(`git config --global user.email "${email}"`);
-    await execPromise(`git config --global user.name "${name}"`);
+    await execCommand('git', ['config', '--global', 'user.email', email]);
+    await execCommand('git', ['config', '--global', 'user.name', name]);
 };
 
 const configureSSH = async (deployKey) => {
     const sshDir = path.join(process.env.HOME, '.ssh');
-    await fs.mkdir(sshDir, { recursive: true });
+    await io.mkdirP(sshDir);
     const knownHosts = path.join(sshDir, 'known_hosts');
     const deployKeyPath = path.join(sshDir, 'id_rsa');
     const decodedPrivateKey = Buffer.from(deployKey, 'base64').toString('utf-8');
     await fs.writeFile(deployKeyPath, decodedPrivateKey, { mode: 0o600 });
-    await execPromise(`ssh-keyscan github.com >> ${knownHosts}`);
+    await execCommand('ssh-keyscan', ['github.com', '>>', knownHosts]);
 };
 
 const cloneRepository = async (repo, tmpdir) => {
@@ -62,8 +73,7 @@ const getShortRepoName = (repo) => {
     if (match) {
         return match[1];
     } else {
-        core.setFailed('Unable to extract repository name.');
-        return null;
+        throw new Error('Unable to extract repository name.');
     }
 };
 
@@ -77,16 +87,14 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     try {
         fileContent = await fs.readFile(filePath, 'utf8');
     } catch (error) {
-        core.setFailed(`Failed to locate ${filePath}. Chart missing or wrong environment?`);
-        return;
+        throw new Error(`Failed to locate ${filePath}. Chart missing or wrong environment?`);
     }
 
     let data;
     try {
         data = yaml.load(fileContent);
     } catch (error) {
-        core.setFailed(`Failed to parse YAML from file ${filePath}. Error: ${error.message}`);
-        return;
+        throw new Error(`Failed to parse YAML from file ${filePath}. Error: ${error.message}`);
     }
 
     if (data.image.tag === tag) {
@@ -99,8 +107,7 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     try {
         await fs.writeFile(filePath, yaml.dump(data), 'utf8');
     } catch (error) {
-        core.setFailed(`Failed to write to file ${filePath}. Error: ${error.message}`);
-        return;
+        throw new Error(`Failed to write to file ${filePath}. Error: ${error.message}`);
     }
 
     await git.add('.');
@@ -171,8 +178,7 @@ const createPullRequest = async (repo, branchName, baseBranch, title, body, org)
             core.info(`✅ Pull request created successfully: ${response.data.html_url}`);
             return prNumber;
         } else {
-            core.error(`💩 Unexpected status code: ${response.status}`);
-            return null;
+            throw new Error(`Unexpected status code: ${response.status}`);
         }
     } catch (error) {
         if (error.status === 422) {
@@ -229,7 +235,7 @@ const mergePullRequest = async (prNumber, org, repo) => {
         }
     }
 
-    core.setFailed(`Failed to merge PR after ${maxAttempts} attempts.`);
+    throw new Error(`Failed to merge PR after ${maxAttempts} attempts.`);
 };
 
 const gitCommitAndCreatePr = async (filename, repo, tag, service, org, env) => {
@@ -246,7 +252,6 @@ const gitCommitAndCreatePr = async (filename, repo, tag, service, org, env) => {
         await commitAndPushChanges(git, filename, tag, service, tmpdir, env);
 
         const shortRepoName = getShortRepoName(repo);
-        if (!shortRepoName) return;
 
         await createLabel(shortRepoName, 'deployment', '009800', org);
         await createLabel(shortRepoName, env, 'FFFFFF', org);
@@ -268,10 +273,8 @@ const gitCommitAndCreatePr = async (filename, repo, tag, service, org, env) => {
 
 async function run() {
     try {
-        const shortRepoName = getShortRepoName(repo);
-        if (!shortRepoName) return;
-
-        await gitCommitAndCreatePr(fileName, repo, tag, service, org, env);
+        const shortRepoName = getShortRepoName(repository);
+        await gitCommitAndCreatePr(fileName, repository, tag, service, organization, environment);
     } catch (error) {
         core.setFailed(error.message);
     }
