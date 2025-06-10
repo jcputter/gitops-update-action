@@ -3,7 +3,7 @@ const github = require('@actions/github');
 const { promises: fs } = require('fs');
 const tmp = require('tmp');
 const simpleGit = require('simple-git');
-const yaml = require('js-yaml');
+const YAML = require('yaml');
 const path = require('path');
 const asyncRetry = require('async-retry');
 const { exec } = require('child_process');
@@ -51,10 +51,10 @@ const cloneRepository = async (repo, tmpdir) => {
     await git.clone(repo, tmpdir, { '--depth': 1 });
 };
 
-const createGitRepo = (tmpdir, repo) => {
-    const git = simpleGit(tmpdir);
-    git.addRemote('upstream', repo);
-    return git;
+const createGitRepo = async (tmpdir, repoUrl) => {
+  const git = simpleGit({ baseDir: tmpdir });
+  await git.addRemote('upstream', repoUrl);
+  return git;
 };
 
 const getShortRepoName = (repo) => {
@@ -67,58 +67,73 @@ const getShortRepoName = (repo) => {
     }
 };
 
+async function updateImageTagOnly(filePath, newTag) {
+  const content = await fs.readFile(filePath, 'utf8');
+  const doc = YAML.parseDocument(content, { keepCstNodes: true });
+  if (doc.errors.length) {
+    throw new Error(`YAML parse error in ${filePath}: ${doc.errors[0].message}`);
+  }
+
+  const imageNode = doc.getIn(['image'], true);
+  if (!imageNode || typeof imageNode.set !== 'function') {
+    throw new Error(`Expected a top-level 'image:' mapping in ${filePath}`);
+  }
+
+  const tagNode = doc.getIn(['image','tag'], true);
+  if (tagNode) {
+    if (tagNode.value === newTag) {
+      return false;
+    }
+    tagNode.value = newTag;
+  } else {
+    imageNode.set('tag', newTag);
+  }
+  const updated = doc.toString({ indent: 2 });
+  await fs.writeFile(filePath, updated, 'utf8');
+  return true;
+}
+
+
 const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) => {
-    const filePath = path.join(tmpdir, filename);
-    const branchName = `update-${env}-${service}-${tag}`;
+  const filePath  = path.join(tmpdir, filename);
+  const branchName = `update-${env}-${service}-${tag}`;
 
-    await git.checkoutLocalBranch(branchName);
+  await git.checkoutLocalBranch(branchName);
 
-    let fileContent;
-    try {
-        fileContent = await fs.readFile(filePath, 'utf8');
-    } catch (error) {
-        core.setFailed(`Failed to locate ${filePath}. Chart missing or wrong environment?`);
-        return;
+  try {
+    await fs.access(filePath);
+  } catch (err) {
+    core.setFailed(`Failed to locate ${filePath}. Chart missing or wrong environment?`);
+    return;
+  }
+
+  let mutated;
+  try {
+    mutated = await updateImageTagOnly(filePath, tag);
+  } catch (err) {
+    core.setFailed(`Failed updating YAML in ${filePath}: ${err.message}`);
+    return;
+  }
+
+  if (!mutated) {
+    core.warning(`Tag already set, ${tag}`);
+    return;
+  }
+
+  await git.add(filename);
+  await git.commit(`chore: updating ${env}-${service} with ${tag}`);
+  await asyncRetry(
+    () => git.push('upstream', branchName),
+    {
+      retries: 3,
+      minTimeout: 5000,
+      onRetry: (err, attempt) => {
+        core.warning(`Retry ${attempt} due to error: ${err.message}`);
+      }
     }
-
-    let data;
-    try {
-        data = yaml.load(fileContent);
-    } catch (error) {
-        core.setFailed(`Failed to parse YAML from file ${filePath}. Error: ${error.message}`);
-        return;
-    }
-
-    if (data.image.tag === tag) {
-        core.warning(`Tag already set, ${tag}`);
-        return;
-    }
-
-    data.image.tag = tag;
-
-    try {
-        await fs.writeFile(filePath, yaml.dump(data), 'utf8');
-    } catch (error) {
-        core.setFailed(`Failed to write to file ${filePath}. Error: ${error.message}`);
-        return;
-    }
-
-    await git.add('.');
-    await git.commit(`chore: updating ${env}-${service} with ${tag}`);
-
-    await asyncRetry(
-        async () => {
-            await git.push('upstream', branchName);
-        },
-        {
-            retries: 3,
-            minTimeout: 5000,
-            onRetry: (err, attempt) => {
-                core.warning(`Retry ${attempt} due to error: ${err.message}`);
-            }
-        }
-    );
+  );
 };
+
 
 const createLabel = async (repo, labelName, labelColor, org) => {
     try {
