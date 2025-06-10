@@ -51,10 +51,10 @@ const cloneRepository = async (repo, tmpdir) => {
     await git.clone(repo, tmpdir, { '--depth': 1 });
 };
 
-const createGitRepo = (tmpdir, repo) => {
-    const git = simpleGit(tmpdir);
-    git.addRemote('upstream', repo);
-    return git;
+const createGitRepo = async (tmpdir, repoUrl) => {
+  const git = simpleGit({ baseDir: tmpdir });
+  await git.addRemote('upstream', repoUrl);
+  return git;
 };
 
 const getShortRepoName = (repo) => {
@@ -95,14 +95,14 @@ async function updateImageTagOnly(filePath, newTag) {
 
 
 const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) => {
-  const filePath = path.join(tmpdir, filename);
+  const filePath  = path.join(tmpdir, filename);
   const branchName = `update-${env}-${service}-${tag}`;
 
   await git.checkoutLocalBranch(branchName);
 
   try {
     await fs.access(filePath);
-  } catch (error) {
+  } catch (err) {
     core.setFailed(`Failed to locate ${filePath}. Chart missing or wrong environment?`);
     return;
   }
@@ -110,8 +110,8 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
   let mutated;
   try {
     mutated = await updateImageTagOnly(filePath, tag);
-  } catch (error) {
-    core.setFailed(`Failed updating YAML in ${filePath}: ${error.message}`);
+  } catch (err) {
+    core.setFailed(`Failed updating YAML in ${filePath}: ${err.message}`);
     return;
   }
 
@@ -120,13 +120,10 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     return;
   }
 
-  await git.add(path.relative(process.cwd(), filePath));
+  await git.add(filename);
   await git.commit(`chore: updating ${env}-${service} with ${tag}`);
-
   await asyncRetry(
-    async () => {
-      await git.push('upstream', branchName);
-    },
+    () => git.push('upstream', branchName),
     {
       retries: 3,
       minTimeout: 5000,
@@ -136,6 +133,7 @@ const commitAndPushChanges = async (git, filename, tag, service, tmpdir, env) =>
     }
   );
 };
+
 
 const createLabel = async (repo, labelName, labelColor, org) => {
     try {
