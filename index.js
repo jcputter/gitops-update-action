@@ -254,7 +254,7 @@ const gitCommitAndCreatePr = async (filename, repo, tag, service, org, env) => {
 
     try {
         await configureSSH(githubDeployKey);
-        await configureGitUser("github-actions@github.com", "github-actions[bot]");
+        await configureGitUser("action@github.com", "github-actions[bot]");
         await cloneRepository(repo, tmpdir);
         const git = await createGitRepo(tmpdir, repo);
         const branchName = `update-${env}-${service}-${tag}`;
